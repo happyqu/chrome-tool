@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Frontend Image Slicer",
+  "version": "0.1.0",
+  "description": "A Chrome tool for slicing frontend image assets and exporting ZIP packages.",
+  "permissions": ["activeTab", "scripting", "downloads", "storage"],
+  "action": {
+    "default_popup": "src/popup/popup.html"
+  },
+  "background": {
+    "service_worker": "assets/serviceWorker.js",
+    "type": "module"
+  }
+}
