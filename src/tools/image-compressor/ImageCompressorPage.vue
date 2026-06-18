@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Delete, Download, FolderOpened, Refresh, UploadFilled, VideoPlay } from "@element-plus/icons-vue";
+import { Delete, Download, Refresh, UploadFilled, VideoPlay } from "@element-plus/icons-vue";
 import { compressionPresets } from "./core/presets";
 import { useImageCompressor } from "./hooks/useImageCompressor";
 import { formatBytes, getSavedPercentClass } from "./utils/format";
@@ -305,7 +305,6 @@ function isResized(item: CompressFileItem) {
               <span v-if="item.result">{{ formatBytes(item.result.compressedSize) }}</span>
               <span>{{ outputDimensionsText(item) }}</span>
               <div class="file-actions">
-                <el-button size="small" :icon="FolderOpened" @click="previewItem = item" />
                 <el-button
                   size="small"
                   :icon="VideoPlay"
@@ -700,9 +699,9 @@ label {
 }
 
 .file-actions :deep(.el-button) {
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
   margin-left: 0;
   padding: 0;
 }
