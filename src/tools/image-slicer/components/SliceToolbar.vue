@@ -6,10 +6,12 @@ import {
   RefreshLeft,
   RefreshRight,
   Delete,
+  Expand,
+  Fold,
   ZoomIn,
   ZoomOut
 } from "@element-plus/icons-vue";
-import { ElButton, ElPopover, ElTooltip } from "element-plus";
+import { ElButton, ElPopover, ElSelect, ElOption, ElTooltip } from "element-plus";
 import type { ExportOptions, ToolMode } from "../types";
 
 defineProps<{
@@ -23,6 +25,8 @@ defineProps<{
   zoomPercent: number;
   exportOptions: ExportOptions;
   isExporting: boolean;
+  leftPanelCollapsed: boolean;
+  rightPanelCollapsed: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -35,15 +39,26 @@ const emit = defineEmits<{
   redo: [];
   zoomIn: [];
   zoomOut: [];
+  zoomSet: [percent: number];
   resetView: [];
   exportSelected: [];
   exportZip: [];
   clearAll: [];
+  toggleLeftPanel: [];
+  toggleRightPanel: [];
   updateExportOptions: [patch: Partial<ExportOptions>];
 }>();
 
 function numberValue(event: Event): number {
   return Number((event.target as HTMLInputElement).value);
+}
+
+function onZoomChange(value: string | number) {
+  const raw = String(value).replace("%", "").trim();
+  const percent = Number(raw);
+  if (Number.isFinite(percent) && percent > 0) {
+    emit("zoomSet", percent);
+  }
 }
 </script>
 
@@ -55,6 +70,22 @@ function numberValue(event: Event): number {
     </div>
 
     <div class="toolbar-center">
+      <div class="group icon-group">
+        <ElTooltip :content="leftPanelCollapsed ? '显示左侧配置' : '隐藏左侧配置'" placement="bottom">
+          <ElButton
+            :icon="leftPanelCollapsed ? Expand : Fold"
+            circle
+            @click="emit('toggleLeftPanel')"
+          />
+        </ElTooltip>
+        <ElTooltip :content="rightPanelCollapsed ? '显示切片列表' : '隐藏切片列表'" placement="bottom">
+          <ElButton
+            :icon="rightPanelCollapsed ? Fold : Expand"
+            circle
+            @click="emit('toggleRightPanel')"
+          />
+        </ElTooltip>
+      </div>
       <div class="group">
         <ElButton text :disabled="!hasImage || guideCount === 0" @click="emit('clearGuides')">清空辅助线</ElButton>
         <ElButton :icon="Aim" :type="snapEnabled ? 'primary' : 'default'" :disabled="!hasImage" plain @click="emit('toggleSnap')">吸附</ElButton>
@@ -69,7 +100,22 @@ function numberValue(event: Event): number {
       </div>
       <div class="group icon-group">
         <ElButton :icon="ZoomOut" :disabled="!hasImage" circle @click="emit('zoomOut')" />
-        <span class="zoom">{{ zoomPercent }}%</span>
+        <ElSelect
+          class="zoom-select"
+          :model-value="`${zoomPercent}`"
+          :disabled="!hasImage"
+          filterable
+          allow-create
+          default-first-option
+          @change="onZoomChange"
+        >
+          <ElOption label="25%" value="25" />
+          <ElOption label="50%" value="50" />
+          <ElOption label="75%" value="75" />
+          <ElOption label="100%" value="100" />
+          <ElOption label="150%" value="150" />
+          <ElOption label="200%" value="200" />
+        </ElSelect>
         <ElButton :icon="ZoomIn" :disabled="!hasImage" circle @click="emit('zoomIn')" />
         <ElTooltip content="重置视图" placement="bottom">
           <ElButton :icon="FullScreen" :disabled="!hasImage" circle @click="emit('resetView')" />
@@ -96,13 +142,28 @@ function numberValue(event: Event): number {
                 <option value="jpeg">jpeg</option>
               </select>
             </label>
-            <label>倍率
-              <select :value="exportOptions.scale" @change="emit('updateExportOptions', { scale: Number(($event.target as HTMLSelectElement).value) as ExportOptions['scale'] })">
+            <div class="scale-field">
+              <label>倍率
+                <input
+                  type="number"
+                  min="0.1"
+                  max="8"
+                  step="0.1"
+                  :value="exportOptions.scale"
+                  @input="emit('updateExportOptions', { scale: Math.max(0.1, numberValue($event)) })"
+                />
+              </label>
+              <select
+                aria-label="选择导出倍率"
+                :value="exportOptions.scale"
+                @change="emit('updateExportOptions', { scale: Number(($event.target as HTMLSelectElement).value) })"
+              >
                 <option :value="1">1x</option>
+                <option :value="1.5">1.5x</option>
                 <option :value="2">2x</option>
                 <option :value="3">3x</option>
               </select>
-            </label>
+            </div>
           </div>
           <label>质量 {{ Math.round(exportOptions.quality * 100) }}%
             <input type="range" min="0.1" max="1" step="0.05" :value="exportOptions.quality" @input="emit('updateExportOptions', { quality: numberValue($event) })" />
@@ -148,12 +209,13 @@ function numberValue(event: Event): number {
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   height: 56px;
+  min-width: 0;
   padding: 0 16px;
   border-bottom: 1px solid var(--app-border);
   background: #fff;
-  overflow-x: auto;
+  overflow: hidden;
   box-shadow: none;
 }
 
@@ -179,8 +241,10 @@ function numberValue(event: Event): number {
 .toolbar-center {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
 }
 
 .group {
@@ -199,21 +263,23 @@ function numberValue(event: Event): number {
 .export-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  flex: 0 0 auto;
+  gap: 4px;
   margin-left: auto;
 }
 
-.zoom {
-  min-width: 48px;
-  border: 0;
-  border-radius: 6px;
-  padding: 3px 6px;
-  background: #f5f7fa;
-  color: var(--app-text-secondary);
+.zoom-select {
+  width: 88px;
+}
+
+.zoom-select :deep(.el-select__wrapper) {
+  min-height: 32px;
+  box-shadow: 0 0 0 1px var(--app-border) inset;
+}
+
+.zoom-select :deep(.el-select__selected-item) {
   font-size: 12px;
-  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  text-align: center;
 }
 
 :deep(.el-button) {
@@ -259,6 +325,13 @@ function numberValue(event: Event): number {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.scale-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 6px;
+  align-items: end;
 }
 
 .export-popover label {

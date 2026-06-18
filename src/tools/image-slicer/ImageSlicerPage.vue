@@ -32,6 +32,8 @@ const isExporting = ref(false);
 const statusMessage = ref("上传图片后开始切图");
 const guides = ref<GuideLine[]>([]);
 const snapEnabled = ref(true);
+const leftPanelCollapsed = ref(false);
+const rightPanelCollapsed = ref(false);
 
 const {
   slices,
@@ -161,6 +163,12 @@ function updateTransform(patch: Partial<Pick<ImageState, "scale" | "offsetX" | "
 function zoomBy(factor: number) {
   if (!imageState.value) return;
   const next = Math.min(8, Math.max(0.05, Number((imageState.value.scale * factor).toFixed(3))));
+  updateTransform({ scale: next });
+}
+
+function setZoomPercent(percent: number) {
+  if (!imageState.value) return;
+  const next = Math.min(8, Math.max(0.05, Number((percent / 100).toFixed(3))));
   updateTransform({ scale: next });
 }
 
@@ -327,6 +335,8 @@ function onAddSlice(slice: SliceRect) {
       :zoom-percent="zoomPercent"
       :export-options="exportOptions"
       :is-exporting="isExporting"
+      :left-panel-collapsed="leftPanelCollapsed"
+      :right-panel-collapsed="rightPanelCollapsed"
       @set-mode="mode = $event"
       @upload-click="uploadInputRef?.click()"
       @paste="pasteImage"
@@ -336,15 +346,25 @@ function onAddSlice(slice: SliceRect) {
       @redo="redo"
       @zoom-in="zoomBy(1.15)"
       @zoom-out="zoomBy(0.85)"
+      @zoom-set="setZoomPercent"
       @reset-view="stageRef?.fitImage()"
       @export-selected="exportSelected"
       @export-zip="exportZip"
       @clear-all="clearAllWorkspace"
+      @toggle-left-panel="leftPanelCollapsed = !leftPanelCollapsed"
+      @toggle-right-panel="rightPanelCollapsed = !rightPanelCollapsed"
       @update-export-options="updateExportOptions"
     />
 
-    <section class="workspace">
+    <section
+      class="workspace"
+      :class="{
+        'is-left-collapsed': leftPanelCollapsed,
+        'is-right-collapsed': rightPanelCollapsed
+      }"
+    >
       <ExportPanel
+        class="workspace-left-panel"
         :export-options="exportOptions"
         :grid-options="gridOptions"
         :fixed-options="fixedOptions"
@@ -390,6 +410,7 @@ function onAddSlice(slice: SliceRect) {
       </section>
 
       <SliceList
+        class="workspace-right-panel"
         :slices="slices"
         :image="imageState?.imageElement ?? null"
         :export-options="exportOptions"

@@ -18,7 +18,7 @@ function renderPreview() {
 
   const width = Math.max(1, Math.round(props.slice.width));
   const height = Math.max(1, Math.round(props.slice.height));
-  const scale = Math.min(72 / width, 52 / height);
+  const scale = Math.min(96 / width, 64 / height);
   canvas.width = Math.max(1, Math.round(width * scale));
   canvas.height = Math.max(1, Math.round(height * scale));
 
@@ -62,8 +62,8 @@ onMounted(renderPreview);
 .preview {
   display: grid;
   place-items: center;
-  width: 72px;
-  height: 52px;
+  width: 96px;
+  height: 64px;
   overflow: hidden;
   border: 1px solid var(--app-border);
   border-radius: 6px;
@@ -83,8 +83,8 @@ onMounted(renderPreview);
 
 canvas {
   display: block;
-  max-width: 72px;
-  max-height: 52px;
+  max-width: 96px;
+  max-height: 64px;
 }
 
 span {

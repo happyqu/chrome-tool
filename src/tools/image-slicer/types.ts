@@ -33,7 +33,7 @@ export type ImageState = {
 export type ExportOptions = {
   format: ImageOutputFormat;
   quality: number;
-  scale: 1 | 2 | 3;
+  scale: number;
   includeManifest: boolean;
   includeReadme: boolean;
   includeCodeSnippets: boolean;

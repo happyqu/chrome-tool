@@ -90,8 +90,10 @@ function openPreview(slice: SliceRect) {
           <ElInput :model-value="slice.name" size="small" @update:model-value="value => emit('rename', slice.id, String(value))" />
           <span v-if="slice.locked" class="lock-badge">已锁定</span>
         </div>
-        <span>x {{ Math.round(slice.x) }} / y {{ Math.round(slice.y) }}</span>
-        <span>{{ Math.round(slice.width) }} x {{ Math.round(slice.height) }} px</span>
+        <div class="info-row">
+          <span>{{ Math.round(slice.width) }} x {{ Math.round(slice.height) }} px</span>
+          <span>x {{ Math.round(slice.x) }} / y {{ Math.round(slice.y) }}</span>
+        </div>
       </div>
       <div class="actions">
         <ElTooltip :content="slice.locked ? '解锁区域' : '锁定区域'" placement="bottom">
@@ -156,11 +158,13 @@ h2 {
 
 .slice-item {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
   border: 1px solid var(--app-border-light);
   border-radius: 8px;
-  padding: 8px;
+  min-height: 82px;
+  padding: 9px;
   background: white;
   cursor: pointer;
   transition:
@@ -186,7 +190,8 @@ h2 {
 
 .meta {
   display: grid;
-  gap: 5px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .name-row {
@@ -194,6 +199,20 @@ h2 {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
   align-items: center;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.info-row span {
+  line-height: 1.2;
 }
 
 .lock-badge {
@@ -207,9 +226,30 @@ h2 {
 
 .actions {
   grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: flex-start;
   gap: 6px;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.actions :deep(.el-button) {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  color: var(--app-text-secondary);
+}
+
+.actions :deep(.el-button:hover) {
+  background: #f3f7ff;
+  color: var(--app-primary);
+}
+
+.actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .preview-button {

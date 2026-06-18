@@ -29,7 +29,7 @@ const emit = defineEmits<{
 }>();
 
 type DragState =
-  | { type: "draw"; startX: number; startY: number }
+  | { type: "draw"; startX: number; startY: number; selectOnClickId?: string }
   | { type: "move"; id: string; startX: number; startY: number; original: SliceRect }
   | { type: "resize"; id: string; handle: string; startX: number; startY: number; original: SliceRect }
   | { type: "guide"; id: string; axis: "x" | "y" }
@@ -40,6 +40,8 @@ const canvasRef = ref<HTMLCanvasElement | null>(null);
 const dragState = ref<DragState | null>(null);
 const draftSlice = ref<SliceRect | null>(null);
 const spacePressed = ref(false);
+const pointerInsideViewport = ref(false);
+const lastViewportPointer = ref<{ x: number; y: number } | null>(null);
 
 const stageStyle = computed(() => {
   const image = props.imageState;
@@ -137,11 +139,14 @@ function clientToRawImagePoint(event: MouseEvent): { x: number; y: number } | nu
 }
 
 function rectStyle(slice: SliceRect) {
+  const scale = props.imageState?.scale ?? 1;
   return {
     left: `${slice.x}px`,
     top: `${slice.y}px`,
     width: `${slice.width}px`,
-    height: `${slice.height}px`
+    height: `${slice.height}px`,
+    "--stage-scale": String(scale),
+    "--inverse-scale": String(1 / scale)
   };
 }
 
@@ -157,25 +162,54 @@ function guideStyle(guide: GuideLine) {
   return { top: `${image.offsetY + guide.position * image.scale}px` };
 }
 
-function snapValue(value: number, axis: "x" | "y"): number {
+function findSnapAnchor(
+  value: number,
+  axis: "x" | "y",
+  excludeSliceId?: string,
+  excludeGuideId?: string
+): { anchor: number; distance: number } | null {
   const image = props.imageState;
   if (!image || !props.snapEnabled) {
-    return value;
+    return null;
   }
   const threshold = 8 / image.scale;
+  const sliceAnchors = props.slices
+    .filter(slice => slice.id !== excludeSliceId)
+    .flatMap(slice =>
+      axis === "x"
+        ? [slice.x, slice.x + slice.width]
+        : [slice.y, slice.y + slice.height]
+    );
   const anchors = [
     0,
     axis === "x" ? image.width : image.height,
-    ...props.guides.filter(guide => guide.axis === axis).map(guide => guide.position)
+    ...props.guides
+      .filter(guide => guide.axis === axis && guide.id !== excludeGuideId)
+      .map(guide => guide.position),
+    ...sliceAnchors
   ];
-  const nearest = anchors.find(anchor => Math.abs(anchor - value) <= threshold);
-  return nearest ?? value;
+
+  return anchors.reduce<{ anchor: number; distance: number } | null>((closest, anchor) => {
+    const distance = Math.abs(anchor - value);
+    if (distance > threshold) {
+      return closest;
+    }
+    if (!closest || distance < closest.distance) {
+      return { anchor, distance };
+    }
+    return closest;
+  }, null);
 }
 
-function snapPoint(point: { x: number; y: number }): { x: number; y: number } {
+function snapValue(value: number, axis: "x" | "y", excludeSliceId?: string, excludeGuideId?: string): number {
+  const nearest = findSnapAnchor(value, axis, excludeSliceId, excludeGuideId);
+  return nearest?.anchor ?? value;
+}
+
+function snapPoint(point: { x: number; y: number }, excludeSliceId?: string): { x: number; y: number } {
   return {
-    x: snapValue(point.x, "x"),
-    y: snapValue(point.y, "y")
+    x: snapValue(point.x, "x", excludeSliceId),
+    y: snapValue(point.y, "y", excludeSliceId)
   };
 }
 
@@ -186,20 +220,26 @@ function snapMovedRect(original: SliceRect, dx: number, dy: number): Pick<SliceR
   }
   let nextX = clamp(original.x + dx, 0, image.width - original.width);
   let nextY = clamp(original.y + dy, 0, image.height - original.height);
-  const snappedLeft = snapValue(nextX, "x");
-  const snappedRight = snapValue(nextX + original.width, "x") - original.width;
-  const snappedTop = snapValue(nextY, "y");
-  const snappedBottom = snapValue(nextY + original.height, "y") - original.height;
+  const xCandidates = [
+    findSnapAnchor(nextX, "x", original.id),
+    findSnapAnchor(nextX + original.width, "x", original.id)
+  ]
+    .map((snap, index) => (snap ? { x: snap.anchor - (index === 0 ? 0 : original.width), distance: snap.distance } : null))
+    .filter((snap): snap is { x: number; distance: number } => Boolean(snap));
+  const yCandidates = [
+    findSnapAnchor(nextY, "y", original.id),
+    findSnapAnchor(nextY + original.height, "y", original.id)
+  ]
+    .map((snap, index) => (snap ? { y: snap.anchor - (index === 0 ? 0 : original.height), distance: snap.distance } : null))
+    .filter((snap): snap is { y: number; distance: number } => Boolean(snap));
 
-  if (Math.abs(snappedLeft - nextX) <= Math.abs(snappedRight - nextX)) {
-    nextX = snappedLeft;
-  } else {
-    nextX = snappedRight;
+  const snappedX = xCandidates.sort((a, b) => a.distance - b.distance)[0];
+  const snappedY = yCandidates.sort((a, b) => a.distance - b.distance)[0];
+  if (snappedX) {
+    nextX = snappedX.x;
   }
-  if (Math.abs(snappedTop - nextY) <= Math.abs(snappedBottom - nextY)) {
-    nextY = snappedTop;
-  } else {
-    nextY = snappedBottom;
+  if (snappedY) {
+    nextY = snappedY.y;
   }
 
   return {
@@ -289,9 +329,16 @@ function onSlicePointerDown(event: MouseEvent, slice: SliceRect) {
 
   if (props.mode === "draw" && (!slice.selected || slice.locked)) {
     const snappedPoint = snapPoint(point);
-    emit("clearSelection");
+    if (!slice.locked) {
+      emit("clearSelection");
+    }
     draftSlice.value = null;
-    dragState.value = { type: "draw", startX: snappedPoint.x, startY: snappedPoint.y };
+    dragState.value = {
+      type: "draw",
+      startX: snappedPoint.x,
+      startY: snappedPoint.y,
+      selectOnClickId: slice.locked ? undefined : slice.id
+    };
     return;
   }
 
@@ -359,7 +406,7 @@ function resizeRect(state: Extract<DragState, { type: "resize" }>, point: { x: n
   let bottom = original.y + original.height;
   const minSize = 4;
 
-  const snapped = snapPoint(point);
+  const snapped = snapPoint(point, state.id);
 
   if (state.handle.includes("w")) left = clamp(snapped.x, 0, right - minSize);
   if (state.handle.includes("e")) right = clamp(snapped.x, left + minSize, image.width);
@@ -375,6 +422,7 @@ function resizeRect(state: Extract<DragState, { type: "resize" }>, point: { x: n
 }
 
 function onPointerMove(event: MouseEvent) {
+  updateViewportPointer(event);
   if (!props.imageState) {
     return;
   }
@@ -405,7 +453,8 @@ function onPointerMove(event: MouseEvent) {
     }
     const max = state.axis === "x" ? props.imageState.width : props.imageState.height;
     const position = state.axis === "x" ? rawPoint.x : rawPoint.y;
-    emit("updateGuide", state.id, Math.round(clamp(position, 0, max)));
+    const snappedPosition = snapValue(position, state.axis, undefined, state.id);
+    emit("updateGuide", state.id, Math.round(clamp(snappedPosition, 0, max)));
     return;
   }
 
@@ -428,13 +477,61 @@ function onPointerMove(event: MouseEvent) {
 }
 
 function onPointerUp() {
-  if (dragState.value?.type === "draw" && draftSlice.value) {
-    if (draftSlice.value.width >= 4 && draftSlice.value.height >= 4) {
-      emit("addSlice", draftSlice.value);
+  if (dragState.value?.type === "draw") {
+    if (draftSlice.value) {
+      if (draftSlice.value.width >= 4 && draftSlice.value.height >= 4) {
+        emit("addSlice", draftSlice.value);
+      }
+    } else if (dragState.value.selectOnClickId) {
+      emit("selectSlice", dragState.value.selectOnClickId);
     }
     draftSlice.value = null;
   }
   dragState.value = null;
+}
+
+function updateViewportPointer(event: MouseEvent) {
+  const viewport = viewportRef.value;
+  if (!viewport) {
+    pointerInsideViewport.value = false;
+    lastViewportPointer.value = null;
+    return;
+  }
+  const bounds = viewport.getBoundingClientRect();
+  const x = event.clientX - bounds.left;
+  const y = event.clientY - bounds.top;
+  const inside = x >= 0 && x <= bounds.width && y >= 0 && y <= bounds.height;
+  pointerInsideViewport.value = inside;
+  if (inside) {
+    lastViewportPointer.value = { x, y };
+  }
+}
+
+function onViewportMouseLeave() {
+  pointerInsideViewport.value = false;
+  lastViewportPointer.value = null;
+  emit("mousePosition", null);
+}
+
+function zoomAtViewportPointer(factor: number) {
+  const image = props.imageState;
+  const viewport = viewportRef.value;
+  if (!image || !viewport || !pointerInsideViewport.value) {
+    return false;
+  }
+  const pointer = lastViewportPointer.value ?? {
+    x: viewport.clientWidth / 2,
+    y: viewport.clientHeight / 2
+  };
+  const beforeX = (pointer.x - image.offsetX) / image.scale;
+  const beforeY = (pointer.y - image.offsetY) / image.scale;
+  const scale = clamp(Number((image.scale * factor).toFixed(3)), 0.05, 8);
+  emit("transformChange", {
+    scale,
+    offsetX: Math.round(pointer.x - beforeX * scale),
+    offsetY: Math.round(pointer.y - beforeY * scale)
+  });
+  return true;
 }
 
 function onWheel(event: WheelEvent) {
@@ -491,6 +588,15 @@ function onKeyDown(event: KeyboardEvent) {
       emit("redo");
     } else {
       emit("undo");
+    }
+    return;
+  }
+
+  const isZoomInKey = event.key === "+" || event.key === "=" || event.code === "NumpadAdd";
+  const isZoomOutKey = event.key === "-" || event.key === "_" || event.code === "NumpadSubtract";
+  if ((event.ctrlKey || event.metaKey) && (isZoomInKey || isZoomOutKey)) {
+    if (zoomAtViewportPointer(isZoomInKey ? 1.1 : 0.9)) {
+      event.preventDefault();
     }
     return;
   }
@@ -556,7 +662,9 @@ defineExpose({ fitImage });
     :class="{ panning: spacePressed }"
     tabindex="0"
     @mousedown="onStagePointerDown"
-    @mouseleave="emit('mousePosition', null)"
+    @mouseenter="updateViewportPointer"
+    @mousemove="updateViewportPointer"
+    @mouseleave="onViewportMouseLeave"
     @wheel="onWheel"
     @dblclick="fitImage"
   >
@@ -679,7 +787,7 @@ canvas {
 .slice-box {
   position: absolute;
   box-sizing: border-box;
-  border: 1px solid #1677ff;
+  border: calc(0.75px * var(--inverse-scale, 1)) solid #1677ff;
   background: rgb(22 119 255 / 8%);
   cursor: move;
 }
@@ -817,9 +925,9 @@ canvas {
 }
 
 .guide-line.vertical::before {
-  left: 5.5px;
+  left: 5.625px;
   top: 0;
-  width: 1px;
+  width: 0.75px;
   height: 100%;
 }
 
@@ -833,13 +941,13 @@ canvas {
 
 .guide-line.horizontal::before {
   left: 0;
-  top: 5.5px;
+  top: 5.625px;
   width: 100%;
-  height: 1px;
+  height: 0.75px;
 }
 
 .slice-box.selected {
-  border: 2px solid #1677ff;
+  border: calc(0.75px * var(--inverse-scale, 1)) solid #1677ff;
   background: rgb(22 119 255 / 10%);
 }
 
@@ -857,25 +965,27 @@ canvas {
 
 .slice-label {
   position: absolute;
-  left: 4px;
-  top: 4px;
-  max-width: calc(100% - 8px);
+  left: calc(5px * var(--inverse-scale, 1));
+  top: calc(5px * var(--inverse-scale, 1));
+  max-width: calc(100% * var(--stage-scale, 1) - 12px);
   overflow: hidden;
   border-radius: 6px;
   padding: 2px 5px;
   background: rgb(31 35 41 / 88%);
   color: white;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
   pointer-events: none;
+  transform: scale(var(--inverse-scale, 1));
+  transform-origin: left top;
 }
 
 .resize-handle {
   position: absolute;
-  width: 8px;
-  height: 8px;
+  width: calc(8px * var(--inverse-scale, 1));
+  height: calc(8px * var(--inverse-scale, 1));
   border: 1px solid #ffffff;
   border-radius: 2px;
   background: #1677ff;
