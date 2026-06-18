@@ -44,6 +44,7 @@ const spacePressed = ref(false);
 const pointerInsideViewport = ref(false);
 const lastViewportPointer = ref<{ x: number; y: number } | null>(null);
 const sliceContextMenu = ref<{ slice: SliceRect; x: number; y: number } | null>(null);
+const sizeEditor = ref<{ id: string; width: number; height: number; x: number; y: number } | null>(null);
 
 const stageStyle = computed(() => {
   const image = props.imageState;
@@ -290,6 +291,7 @@ function normalizeRect(startX: number, startY: number, endX: number, endY: numbe
 
 function onStagePointerDown(event: MouseEvent) {
   closeSliceContextMenu();
+  closeSizeEditor();
   if (!props.imageState) {
     return;
   }
@@ -358,6 +360,23 @@ function onSlicePointerDown(event: MouseEvent, slice: SliceRect) {
   dragState.value = { type: "move", id: slice.id, startX: point.x, startY: point.y, original: { ...slice } };
 }
 
+function onSliceDoubleClick(event: MouseEvent, slice: SliceRect) {
+  event.preventDefault();
+  event.stopPropagation();
+  closeSliceContextMenu();
+  if (slice.locked) {
+    return;
+  }
+  emit("selectSlice", slice.id);
+  sizeEditor.value = {
+    id: slice.id,
+    width: Math.round(slice.width),
+    height: Math.round(slice.height),
+    x: Math.min(event.clientX, window.innerWidth - 220),
+    y: Math.min(event.clientY, window.innerHeight - 150)
+  };
+}
+
 function onSliceContextMenu(event: MouseEvent, slice: SliceRect) {
   event.preventDefault();
   event.stopPropagation();
@@ -373,6 +392,35 @@ function onSliceContextMenu(event: MouseEvent, slice: SliceRect) {
 
 function closeSliceContextMenu() {
   sliceContextMenu.value = null;
+}
+
+function closeSizeEditor() {
+  sizeEditor.value = null;
+}
+
+function updateSizeEditorValue(axis: "width" | "height", event: Event) {
+  if (!sizeEditor.value) {
+    return;
+  }
+  const value = Number((event.target as HTMLInputElement).value);
+  sizeEditor.value = {
+    ...sizeEditor.value,
+    [axis]: Number.isFinite(value) ? value : sizeEditor.value[axis]
+  };
+}
+
+function applySizeEditor() {
+  const editor = sizeEditor.value;
+  const image = props.imageState;
+  const slice = editor ? props.slices.find(item => item.id === editor.id) : null;
+  if (!editor || !image || !slice) {
+    closeSizeEditor();
+    return;
+  }
+  const width = Math.round(clamp(editor.width, 1, image.width - slice.x));
+  const height = Math.round(clamp(editor.height, 1, image.height - slice.y));
+  emit("updateSlice", editor.id, { width, height }, true);
+  closeSizeEditor();
 }
 
 function exportContextSlice() {
@@ -425,7 +473,111 @@ function onRulerPointerDown(event: MouseEvent, axis: GuideLine["axis"]) {
   dragState.value = { type: "guide", id: guide.id, axis };
 }
 
-function resizeRect(state: Extract<DragState, { type: "resize" }>, point: { x: number; y: number }): Partial<SliceRect> {
+function constrainSquareResize(
+  state: Extract<DragState, { type: "resize" }>,
+  rect: { left: number; top: number; right: number; bottom: number },
+  image: ImageState,
+  minSize: number,
+  fromCenter: boolean
+) {
+  const { handle, original } = state;
+  const hasWest = handle.includes("w");
+  const hasEast = handle.includes("e");
+  const hasNorth = handle.includes("n");
+  const hasSouth = handle.includes("s");
+  const centerX = original.x + original.width / 2;
+  const centerY = original.y + original.height / 2;
+  const width = Math.abs(rect.right - rect.left);
+  const height = Math.abs(rect.bottom - rect.top);
+  let size = hasWest || hasEast ? width : height;
+
+  if ((hasWest || hasEast) && (hasNorth || hasSouth)) {
+    size = Math.max(width, height);
+  }
+
+  if (fromCenter) {
+    const maxSize = Math.min(
+      Math.min(centerX, image.width - centerX) * 2,
+      Math.min(centerY, image.height - centerY) * 2
+    );
+    size = clamp(size, minSize, Math.max(minSize, maxSize));
+    rect.left = centerX - size / 2;
+    rect.right = centerX + size / 2;
+    rect.top = centerY - size / 2;
+    rect.bottom = centerY + size / 2;
+    return;
+  }
+
+  const maxWidth = hasWest
+    ? rect.right
+    : hasEast
+      ? image.width - rect.left
+      : Math.min(centerX, image.width - centerX) * 2;
+  const maxHeight = hasNorth
+    ? rect.bottom
+    : hasSouth
+      ? image.height - rect.top
+      : Math.min(centerY, image.height - centerY) * 2;
+
+  size = clamp(size, minSize, Math.max(minSize, Math.min(maxWidth, maxHeight)));
+
+  if (hasWest) {
+    rect.left = rect.right - size;
+  } else if (hasEast) {
+    rect.right = rect.left + size;
+  } else {
+    rect.left = centerX - size / 2;
+    rect.right = centerX + size / 2;
+  }
+
+  if (hasNorth) {
+    rect.top = rect.bottom - size;
+  } else if (hasSouth) {
+    rect.bottom = rect.top + size;
+  } else {
+    rect.top = centerY - size / 2;
+    rect.bottom = centerY + size / 2;
+  }
+
+  rect.left = clamp(rect.left, 0, image.width - size);
+  rect.top = clamp(rect.top, 0, image.height - size);
+  rect.right = rect.left + size;
+  rect.bottom = rect.top + size;
+}
+
+function resizeFromCenter(
+  state: Extract<DragState, { type: "resize" }>,
+  rect: { left: number; top: number; right: number; bottom: number },
+  image: ImageState,
+  minSize: number
+) {
+  const { handle, original } = state;
+  const centerX = original.x + original.width / 2;
+  const centerY = original.y + original.height / 2;
+  const hasHorizontalHandle = handle.includes("w") || handle.includes("e");
+  const hasVerticalHandle = handle.includes("n") || handle.includes("s");
+
+  if (hasHorizontalHandle) {
+    const maxWidth = Math.min(centerX, image.width - centerX) * 2;
+    const width = clamp(Math.abs(rect.right - rect.left), minSize, Math.max(minSize, maxWidth));
+    rect.left = centerX - width / 2;
+    rect.right = centerX + width / 2;
+  }
+
+  if (hasVerticalHandle) {
+    const maxHeight = Math.min(centerY, image.height - centerY) * 2;
+    const height = clamp(Math.abs(rect.bottom - rect.top), minSize, Math.max(minSize, maxHeight));
+    rect.top = centerY - height / 2;
+    rect.bottom = centerY + height / 2;
+  }
+}
+
+function resizeRect(
+  state: Extract<DragState, { type: "resize" }>,
+  point: { x: number; y: number },
+  keepSquare: boolean,
+  fromCenter: boolean
+): Partial<SliceRect> {
   const image = props.imageState;
   const original = state.original;
   if (!image) {
@@ -445,11 +597,19 @@ function resizeRect(state: Extract<DragState, { type: "resize" }>, point: { x: n
   if (state.handle.includes("n")) top = clamp(snapped.y, 0, bottom - minSize);
   if (state.handle.includes("s")) bottom = clamp(snapped.y, top + minSize, image.height);
 
+  const rect = { left, top, right, bottom };
+  if (fromCenter) {
+    resizeFromCenter(state, rect, image, minSize);
+  }
+  if (keepSquare) {
+    constrainSquareResize(state, rect, image, minSize, fromCenter);
+  }
+
   return {
-    x: Math.round(left),
-    y: Math.round(top),
-    width: Math.round(right - left),
-    height: Math.round(bottom - top)
+    x: Math.round(rect.left),
+    y: Math.round(rect.top),
+    width: Math.round(rect.right - rect.left),
+    height: Math.round(rect.bottom - rect.top)
   };
 }
 
@@ -504,7 +664,7 @@ function onPointerMove(event: MouseEvent) {
   }
 
   if (state.type === "resize") {
-    emit("updateSlice", state.id, resizeRect(state, point), false);
+    emit("updateSlice", state.id, resizeRect(state, point, event.shiftKey, event.altKey), false);
   }
 }
 
@@ -645,6 +805,7 @@ function onKeyDown(event: KeyboardEvent) {
   }
   if (event.key === "Escape") {
     closeSliceContextMenu();
+    closeSizeEditor();
     emit("clearSelection");
   }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
@@ -676,6 +837,7 @@ onMounted(() => {
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("mousedown", closeSliceContextMenu);
+  window.addEventListener("mousedown", closeSizeEditor);
   drawImage();
 });
 
@@ -685,6 +847,7 @@ onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeyDown);
   window.removeEventListener("keyup", onKeyUp);
   window.removeEventListener("mousedown", closeSliceContextMenu);
+  window.removeEventListener("mousedown", closeSizeEditor);
 });
 
 defineExpose({ fitImage });
@@ -750,6 +913,7 @@ defineExpose({ fitImage });
         :class="{ selected: slice.selected, locked: slice.locked }"
         :style="rectStyle(slice)"
         @mousedown="onSlicePointerDown($event, slice)"
+        @dblclick="onSliceDoubleClick($event, slice)"
         @contextmenu="onSliceContextMenu($event, slice)"
       >
         <span class="slice-label">{{ slice.name }} {{ Math.round(slice.width) }}x{{ Math.round(slice.height) }}</span>
@@ -781,6 +945,40 @@ defineExpose({ fitImage });
     >
       <button type="button" @click="exportContextSlice">导出该切片</button>
     </div>
+    <form
+      v-if="sizeEditor"
+      class="size-editor"
+      :style="{ left: `${sizeEditor.x}px`, top: `${sizeEditor.y}px` }"
+      @submit.prevent="applySizeEditor"
+      @mousedown.stop
+      @dblclick.stop
+      @keydown.esc.prevent.stop="closeSizeEditor"
+    >
+      <label>
+        宽
+        <input
+          type="number"
+          min="1"
+          step="1"
+          :value="sizeEditor.width"
+          @input="updateSizeEditorValue('width', $event)"
+        />
+      </label>
+      <label>
+        高
+        <input
+          type="number"
+          min="1"
+          step="1"
+          :value="sizeEditor.height"
+          @input="updateSizeEditorValue('height', $event)"
+        />
+      </label>
+      <div class="size-editor-actions">
+        <button type="button" @click="closeSizeEditor">取消</button>
+        <button type="submit">应用</button>
+      </div>
+    </form>
     <div v-if="!imageState" class="empty-stage">
       <strong>等待图片</strong>
       <span>上传、拖拽或粘贴图片后即可开始切图</span>
@@ -1037,6 +1235,70 @@ canvas {
 .slice-context-menu button:hover {
   background: var(--app-primary-bg);
   color: var(--app-primary);
+}
+
+.size-editor {
+  position: fixed;
+  z-index: 21;
+  display: grid;
+  grid-template-columns: repeat(2, 76px);
+  gap: 8px;
+  width: 188px;
+  box-sizing: border-box;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgb(31 35 41 / 12%);
+}
+
+.size-editor label {
+  display: grid;
+  gap: 4px;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.size-editor input {
+  width: 100%;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px solid var(--app-border);
+  border-radius: 5px;
+  padding: 0 7px;
+  color: var(--app-text);
+  font-size: 12px;
+  outline: none;
+}
+
+.size-editor input:focus {
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 2px rgb(22 119 255 / 12%);
+}
+
+.size-editor-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.size-editor-actions button {
+  height: 28px;
+  border: 1px solid var(--app-border);
+  border-radius: 5px;
+  padding: 0 10px;
+  background: #fff;
+  color: var(--app-text-regular);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.size-editor-actions button[type="submit"] {
+  border-color: var(--app-primary);
+  background: var(--app-primary);
+  color: #fff;
 }
 
 .slice-label {
