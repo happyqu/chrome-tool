@@ -1060,12 +1060,19 @@ canvas {
 
 .resize-handle {
   position: absolute;
+  appearance: none;
+  box-sizing: border-box;
   width: calc(8px * var(--inverse-scale, 1));
+  min-width: 0;
   height: calc(8px * var(--inverse-scale, 1));
-  border: 1px solid #ffffff;
-  border-radius: 2px;
+  min-height: 0;
+  border: calc(1px * var(--inverse-scale, 1)) solid #ffffff;
+  border-radius: calc(2px * var(--inverse-scale, 1));
+  padding: 0;
   background: #1677ff;
+  line-height: 0;
   transform: translate(-50%, -50%);
+  transform-origin: center;
 }
 
 .resize-handle.nw,
