@@ -11,9 +11,9 @@ const isDragging = ref(false);
 const previewItem = ref<CompressFileItem | null>(null);
 const options = ref<CompressOptions>({
   mode: "balanced",
-  allowConvertToWebp: true,
+  allowConvertToWebp: false,
   allowKeepOriginal: true,
-  preserveOriginalFormat: false
+  preserveOriginalFormat: true
 });
 
 const {
