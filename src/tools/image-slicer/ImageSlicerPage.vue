@@ -236,6 +236,7 @@ async function exportOne(slice: SliceRect) {
   try {
     const blob = await cropImageToBlob(image, slice, exportOptions.value);
     downloadBlob(blob, generateSliceFileName(slice, 0, exportOptions.value));
+    statusMessage.value = `已导出切片 ${slice.name}`;
   } catch (error) {
     statusMessage.value = error instanceof Error ? error.message : "单独导出失败";
   }
@@ -396,6 +397,7 @@ function onAddSlice(slice: SliceRect) {
           @add-slice="onAddSlice"
           @update-slice="onUpdateSlice"
           @select-slice="selectSlice"
+          @export-slice="exportOne"
           @clear-selection="clearSelection"
           @delete-selected="deleteSelected"
           @duplicate-selected="duplicateSelected"

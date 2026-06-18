@@ -16,6 +16,7 @@ const emit = defineEmits<{
   addSlice: [slice: SliceRect];
   updateSlice: [id: string, patch: Partial<SliceRect>, snapshot?: boolean];
   selectSlice: [id: string, additive?: boolean];
+  exportSlice: [slice: SliceRect];
   clearSelection: [];
   deleteSelected: [];
   duplicateSelected: [];
@@ -42,6 +43,7 @@ const draftSlice = ref<SliceRect | null>(null);
 const spacePressed = ref(false);
 const pointerInsideViewport = ref(false);
 const lastViewportPointer = ref<{ x: number; y: number } | null>(null);
+const sliceContextMenu = ref<{ slice: SliceRect; x: number; y: number } | null>(null);
 
 const stageStyle = computed(() => {
   const image = props.imageState;
@@ -287,6 +289,7 @@ function normalizeRect(startX: number, startY: number, endX: number, endY: numbe
 }
 
 function onStagePointerDown(event: MouseEvent) {
+  closeSliceContextMenu();
   if (!props.imageState) {
     return;
   }
@@ -319,6 +322,10 @@ function onStagePointerDown(event: MouseEvent) {
 
 function onSlicePointerDown(event: MouseEvent, slice: SliceRect) {
   event.stopPropagation();
+  closeSliceContextMenu();
+  if (event.button === 2) {
+    return;
+  }
   if (spacePressed.value) {
     return;
   }
@@ -349,6 +356,31 @@ function onSlicePointerDown(event: MouseEvent, slice: SliceRect) {
   emit("selectSlice", slice.id, event.ctrlKey || event.metaKey || event.shiftKey);
   emit("updateSlice", slice.id, {}, true);
   dragState.value = { type: "move", id: slice.id, startX: point.x, startY: point.y, original: { ...slice } };
+}
+
+function onSliceContextMenu(event: MouseEvent, slice: SliceRect) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (!slice.locked) {
+    emit("selectSlice", slice.id, event.ctrlKey || event.metaKey || event.shiftKey);
+  }
+  sliceContextMenu.value = {
+    slice,
+    x: Math.min(event.clientX, window.innerWidth - 148),
+    y: Math.min(event.clientY, window.innerHeight - 44)
+  };
+}
+
+function closeSliceContextMenu() {
+  sliceContextMenu.value = null;
+}
+
+function exportContextSlice() {
+  if (!sliceContextMenu.value) {
+    return;
+  }
+  emit("exportSlice", sliceContextMenu.value.slice);
+  closeSliceContextMenu();
 }
 
 function onResizePointerDown(event: MouseEvent, slice: SliceRect, handle: string) {
@@ -612,6 +644,7 @@ function onKeyDown(event: KeyboardEvent) {
     emit("deleteSelected");
   }
   if (event.key === "Escape") {
+    closeSliceContextMenu();
     emit("clearSelection");
   }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
@@ -642,6 +675,7 @@ onMounted(() => {
   window.addEventListener("mouseup", onPointerUp);
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("mousedown", closeSliceContextMenu);
   drawImage();
 });
 
@@ -650,6 +684,7 @@ onBeforeUnmount(() => {
   window.removeEventListener("mouseup", onPointerUp);
   window.removeEventListener("keydown", onKeyDown);
   window.removeEventListener("keyup", onKeyUp);
+  window.removeEventListener("mousedown", closeSliceContextMenu);
 });
 
 defineExpose({ fitImage });
@@ -715,6 +750,7 @@ defineExpose({ fitImage });
         :class="{ selected: slice.selected, locked: slice.locked }"
         :style="rectStyle(slice)"
         @mousedown="onSlicePointerDown($event, slice)"
+        @contextmenu="onSliceContextMenu($event, slice)"
       >
         <span class="slice-label">{{ slice.name }} {{ Math.round(slice.width) }}x{{ Math.round(slice.height) }}</span>
         <template v-if="slice.selected && !slice.locked">
@@ -736,7 +772,16 @@ defineExpose({ fitImage });
         <span class="slice-label">{{ Math.round(draftSlice.width) }}x{{ Math.round(draftSlice.height) }}</span>
       </div>
     </div>
-    <div v-else class="empty-stage">
+    <div
+      v-if="sliceContextMenu"
+      class="slice-context-menu"
+      :style="{ left: `${sliceContextMenu.x}px`, top: `${sliceContextMenu.y}px` }"
+      @mousedown.stop
+      @contextmenu.prevent.stop
+    >
+      <button type="button" @click="exportContextSlice">导出该切片</button>
+    </div>
+    <div v-if="!imageState" class="empty-stage">
       <strong>等待图片</strong>
       <span>上传、拖拽或粘贴图片后即可开始切图</span>
     </div>
@@ -961,6 +1006,37 @@ canvas {
   border-color: #1677ff;
   background: rgb(22 119 255 / 8%);
   pointer-events: none;
+}
+
+.slice-context-menu {
+  position: fixed;
+  z-index: 20;
+  min-width: 128px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  padding: 4px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgb(31 35 41 / 12%);
+}
+
+.slice-context-menu button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 30px;
+  border: 0;
+  border-radius: 4px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--app-text-regular);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slice-context-menu button:hover {
+  background: var(--app-primary-bg);
+  color: var(--app-primary);
 }
 
 .slice-label {
