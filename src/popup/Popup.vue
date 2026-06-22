@@ -19,7 +19,7 @@ function openTool(path: string) {
         <span>图片切图</span>
         <small>框选切片并导出前端资源包</small>
       </button>
-      <button type="button" class="tool-card primary" @click="openTool(IMAGE_COMPRESSOR_PAGE_PATH)">
+      <button type="button" class="tool-card" @click="openTool(IMAGE_COMPRESSOR_PAGE_PATH)">
         <span>图片压缩</span>
         <small>本地压缩 PNG / JPEG / WebP，支持批量压缩和 ZIP 下载</small>
       </button>
