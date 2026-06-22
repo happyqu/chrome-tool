@@ -16,6 +16,7 @@ export default defineConfig({
         imageSlicer: resolve(__dirname, "src/tools/image-slicer/index.html"),
         imageCompressor: resolve(__dirname, "src/tools/image-compressor/index.html"),
         qrTool: resolve(__dirname, "src/tools/qr/index.html"),
+        ipLookup: resolve(__dirname, "src/tools/ip-lookup/index.html"),
         serviceWorker: resolve(__dirname, "src/background/serviceWorker.ts")
       },
       output: {

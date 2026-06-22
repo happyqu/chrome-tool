@@ -2,8 +2,9 @@
   "manifest_version": 3,
   "name": "Frontend Image Tools",
   "version": "0.1.0",
-  "description": "Local frontend image tools for slicing and compressing image assets.",
+  "description": "Local frontend tools for images, QR codes, and IP lookup.",
   "permissions": ["activeTab", "scripting", "downloads", "storage"],
+  "host_permissions": ["https://ipinfo.io/*", "https://api.ipinfo.io/*"],
   "action": {
     "default_popup": "src/popup/popup.html"
   },

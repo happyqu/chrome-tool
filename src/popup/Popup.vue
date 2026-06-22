@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IMAGE_COMPRESSOR_PAGE_PATH, IMAGE_SLICER_PAGE_PATH, QR_TOOL_PAGE_PATH } from "../shared/constants";
+import { IMAGE_COMPRESSOR_PAGE_PATH, IMAGE_SLICER_PAGE_PATH, IP_LOOKUP_PAGE_PATH, QR_TOOL_PAGE_PATH } from "../shared/constants";
 
 function openTool(path: string) {
   const url = chrome.runtime.getURL(path);
@@ -26,6 +26,10 @@ function openTool(path: string) {
       <button type="button" class="tool-card" @click="openTool(QR_TOOL_PAGE_PATH)">
         <span>二维码工具</span>
         <small>本地生成二维码，上传、拖拽或粘贴图片识别二维码内容</small>
+      </button>
+      <button type="button" class="tool-card" @click="openTool(IP_LOOKUP_PAGE_PATH)">
+        <span>IP 查询</span>
+        <small>查询本机公网 IP 和指定 IP 所在地，支持无 Token 模式</small>
       </button>
     </section>
   </main>

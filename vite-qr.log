@@ -39,3 +39,6 @@ Port 5173 is in use, trying another one...
 [2m10:39:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
 [2m10:41:18[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
 [2m10:41:58[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m11:22:08[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/tools/ip-lookup/index.html[22m
+[2m11:23:51[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m11:23:52[22m [36m[1m[vite][22m[39m server restarted.
