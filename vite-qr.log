@@ -1,0 +1,41 @@
+
+> chrome-image-slicer-tool@0.1.0 dev
+> vite --host 127.0.0.1 --port 5173
+
+Port 5173 is in use, trying another one...
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m1867[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5174[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+[2m10:14:06[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrDecoder.vue[22m
+[2m10:17:55[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:17:55[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/QrToolPage.vue[22m
+[2m10:17:56[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
+[2m10:20:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:20:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/QrToolPage.vue[22m
+[2m10:20:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrDecoder.vue[22m
+[2m10:20:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/QrToolPage.vue[22m
+[2m10:20:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
+[2m10:23:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:23:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
+[2m10:25:25[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
+[2m10:25:35[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:26:40[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:26:41[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
+[2m10:27:23[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:28:10[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:31:57[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
+[2m10:32:08[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:32:08[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
+[2m10:34:38[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
+[2m10:34:46[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:36:03[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:37:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:37:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
+[2m10:37:57[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:38:41[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:39:22[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:39:28[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m
+[2m10:41:18[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/components/QrGenerator.vue[22m
+[2m10:41:58[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/tools/qr/styles.css[22m

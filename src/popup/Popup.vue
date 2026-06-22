@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IMAGE_COMPRESSOR_PAGE_PATH, IMAGE_SLICER_PAGE_PATH } from "../shared/constants";
+import { IMAGE_COMPRESSOR_PAGE_PATH, IMAGE_SLICER_PAGE_PATH, QR_TOOL_PAGE_PATH } from "../shared/constants";
 
 function openTool(path: string) {
   const url = chrome.runtime.getURL(path);
@@ -12,7 +12,7 @@ function openTool(path: string) {
     <section class="intro">
       <p class="eyebrow">Frontend Tools</p>
       <h1>图片工具台</h1>
-      <p>本地处理前端图片素材，支持切图、压缩和 ZIP 导出。</p>
+      <p>本地处理前端图片素材，支持切图、压缩、二维码生成和识别。</p>
     </section>
     <section class="tool-list">
       <button type="button" class="tool-card" @click="openTool(IMAGE_SLICER_PAGE_PATH)">
@@ -22,6 +22,10 @@ function openTool(path: string) {
       <button type="button" class="tool-card primary" @click="openTool(IMAGE_COMPRESSOR_PAGE_PATH)">
         <span>图片压缩</span>
         <small>本地压缩 PNG / JPEG / WebP，支持批量压缩和 ZIP 下载</small>
+      </button>
+      <button type="button" class="tool-card" @click="openTool(QR_TOOL_PAGE_PATH)">
+        <span>二维码工具</span>
+        <small>本地生成二维码，上传、拖拽或粘贴图片识别二维码内容</small>
       </button>
     </section>
   </main>
