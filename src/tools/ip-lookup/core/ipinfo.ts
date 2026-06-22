@@ -30,14 +30,26 @@ function hasChromeStorage() {
   return typeof chrome !== "undefined" && Boolean(chrome.storage?.local);
 }
 
+function normalizeStoredState(value: unknown): StoredIpLookupState {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const state = value as StoredIpLookupState;
+  return {
+    token: typeof state.token === "string" ? state.token : "",
+    history: Array.isArray(state.history) ? state.history : []
+  };
+}
+
 export async function loadStoredState(): Promise<StoredIpLookupState> {
   if (hasChromeStorage()) {
     const value = await chrome.storage.local.get(STORAGE_KEY);
-    return (value[STORAGE_KEY] || {}) as StoredIpLookupState;
+    return normalizeStoredState(value[STORAGE_KEY]);
   }
 
   const raw = localStorage.getItem(STORAGE_KEY);
-  return raw ? (JSON.parse(raw) as StoredIpLookupState) : {};
+  return raw ? normalizeStoredState(JSON.parse(raw)) : {};
 }
 
 export async function saveStoredState(state: StoredIpLookupState): Promise<void> {
@@ -115,5 +127,6 @@ export function addHistoryItem(
     queriedAt: Date.now()
   };
 
-  return [item, ...history.filter(entry => entry.ip !== result.ip)].slice(0, HISTORY_LIMIT);
+  const safeHistory = Array.isArray(history) ? history : [];
+  return [item, ...safeHistory.filter(entry => entry.ip !== result.ip)].slice(0, HISTORY_LIMIT);
 }
